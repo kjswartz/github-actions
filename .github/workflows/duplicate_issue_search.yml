@@ -1,0 +1,40 @@
+name: Duplicate Issue Search
+
+on:
+  issues:
+    types:
+      - opened
+
+jobs:
+  ai-assessment:
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+      models: read
+      contents: read
+
+    steps:
+      - name: Get issues
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "Determin if the following issue is a duplicate of any existing issues in the repository. If it is a duplicate, rate the similarity as 'HIGH', 'MEDIUM', or 'LOW'. Only include issues that have some similarity. Provide your response in this format for each similar issue:\n\nIssue #[number] - [similarity rating]\nTitle: [title]\nURL: [url]\nReason for similarity: [brief explanation]\n\nSort the results by similarity rating (HIGH first, then MEDIUM, then LOW).\n\nIssue Title: ${{ github.event.issue.title }}\nIssue Body: ${{ github.event.issue.body }}\n\nExisting Issues:\n" > issues.txt
+          gh issue list --repo ${{ github.repository }} --limit 100 --json number,title,body,url,labels --jq '.[] | select(.number != '${{ github.event.issue.number }}') | {number: .number, title: .title, body: .body, url: .url, labels: [.labels[].name]}' >> issues.txt
+          echo "Issues fetched successfully."
+      
+      - name: Search for Dups
+        id: inference
+        uses: actions/ai-inference@main
+        with:
+          prompt-file: './issues.txt'
+          model: openai/gpt-4o
+          token: ${{ secrets.GITHUB_TOKEN }}
+          max-tokens: 2000
+
+      - name: Print Output
+        id: output
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: | 
+          echo "${{ steps.inference.outputs.response }}" > response.md
+          gh issue comment ${{ github.event.issue.number }} --repo ${{ github.repository }} --body-file response.md
