@@ -1,0 +1,41 @@
+name: AI Issue Buddy
+
+on:
+  issue_comment:
+    types:
+      created
+
+jobs:
+  ai-assessment:
+    if: startsWith(github.event.comment.body, '<!-- AI Buddy Request -->')
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+      models: read
+      contents: read
+
+    steps:
+      - name: Check issue comment
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "${{ github.event.comment.body}}\n\n" > comment.txt
+          echo "Below is a reference to the issue body:" >> comment.txt
+          echo "${{ github.event.issue.body }}" >> comment.txt
+      
+      - name: Ask AI Buddy
+        id: inference
+        uses: actions/ai-inference@main
+        with:
+          prompt-file: './comment.txt'
+          model: openai/gpt-4o
+          token: ${{ secrets.GITHUB_TOKEN }}
+          max-tokens: 1000
+
+      - name: Print Output
+        id: output
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: | 
+          echo "${{ steps.inference.outputs.response }}" > response.md
+          gh issue comment ${{ github.event.issue.number }} --repo ${{ github.repository }} --body-file response.md
