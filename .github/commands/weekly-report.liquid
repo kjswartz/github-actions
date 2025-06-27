@@ -1,0 +1,22 @@
+{% capture form -%}
+<!-- UPDATE -->
+
+**Project Health**: {{ data.project_health }}
+
+**Status**: {{ data.status }}
+
+{% unless data.shipped == blank %}
+### Shipped this week
+
+{{ data.shipped }}
+{% endunless -%}
+
+{% unless data.learned == blank %}
+### Learned this week
+
+{{ data.learned }}
+{% endunless -%}
+
+{%- endcapture -%}
+{{ form | escape }}
+%cursor%
