@@ -1,0 +1,57 @@
+---
+trigger: weekly
+title: Weekly Update
+description: Weekly update on the status of the initiatives and epics.
+surfaces:
+  - issue
+steps:
+  - type: form
+    style: embedded
+    actions:
+      submit: Submit
+    body:
+      - type: dropdown
+        attributes:
+          id: project_health
+          label: Project Health
+          options:
+            - label: "🟢 On Track"
+              value: "🟢 On Track"
+            - label: "🟡 At Risk"
+              value: "🟡 At Risk"
+            - label: "🔴 Blocked"
+              value: "🔴 Blocked"
+            - label: "🟣 Done"
+              value: "🟣 Done"
+      - type: dropdown
+        attributes:
+          id: status
+          label: Status
+          options:
+            - label: "🧠 Planning"
+              value: "🧠 Planning"
+            - label: "🚧 In Progress"
+              value: "🚧 In Progress"
+            - label: "🔍 In Review"
+              value: "🔍 In Review"
+            - label: "⏸ Inactive"
+              value: "⏸ Inactive"
+            - label: "✅ Done"
+              value: "✅ Done"
+            - label: "🧊 Backlog"
+              value: "🧊 Backlog"
+            - label: "❌ Cancelled"
+              value: "❌ Cancelled"
+      - type: textarea
+        attributes:
+          id: shipped
+          label: Shipped this week
+          placeholder: A few words on anything you shipped this week
+      - type: textarea
+        attributes:
+          id: learned
+          label: Learned this week
+          placeholder: A few words on anything you learned this week
+  - type: fill
+    submit_form: true
+    template_path: .github/commands/weekly-report.liquid
