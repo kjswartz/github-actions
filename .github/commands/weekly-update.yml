@@ -54,4 +54,4 @@ steps:
           placeholder: A few words on anything you learned this week
   - type: fill
     submit_form: true
-    template_path: .github/commands/weekly-report.liquid
+    template_path: .github/commands/weekly-update.liquid
