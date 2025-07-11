@@ -41,13 +41,13 @@ jobs:
             echo "Found checklist section."
 
             # Check if all checkboxes are completed
-            if echo "${CHECKLIST_SECTION}" | grep -q '\[ \]'; then
+            if echo "${CHECKLIST_SECTION}" | grep -q '^\- \[ \]'; then
               echo "Not all checkboxes within the section are completed. Found unchecked boxes: [ ]"
               exit 0
             fi
             
             # Optional: Verify that there are actually checkboxes present
-            if ! echo "${CHECKLIST_SECTION}" | grep -iq '\[x\]'; then
+            if ! echo "${CHECKLIST_SECTION}" | grep -iq '^\- \[x\]'; then
               echo "No completed checkboxes found within the section."
               exit 0
             fi
