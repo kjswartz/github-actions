@@ -1,0 +1,63 @@
+name: Checklist Labeller Approver
+
+on:
+  issue_comment:
+    types: 
+      - edited
+
+jobs:
+  checklist-approver:
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+      contents: read
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Check Comment Checkboxes
+        id: checklist-check
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          COMMENT: ${{ github.event.comment.body }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          LABELS: ${{ toJson(github.event.issue.labels) }}
+          NEEDS_APPROVAL_LABEL: ${{ vars.NEEDS_APPROVAL_LABEL || 'verification-needed' }}
+          APPROVED_LABEL: ${{ vars.APPROVED_LABEL || 'verified' }}
+          CHECKLIST_KEY: ${{ vars.CHECKLIST_KEY || 'verify-checklist' }}
+        run: |
+          LABEL_FOUND=$(echo "${LABELS}" | jq --arg label "${NEEDS_APPROVAL_LABEL}" 'map(.name // empty) | contains([$label])')
+          if [[ "${LABEL_FOUND}" == "true" ]]; then
+            # Extract the checklist section
+            CHECKLIST_SECTION=$(echo "${COMMENT}" | sed -n "/<!-- key=\"${CHECKLIST_KEY}\" value=\"start\" -->/,/<!-- key=\"${CHECKLIST_KEY}\" value=\"end\" -->/p")
+
+            # Check if the checklist section exists
+            if [[ -z "${CHECKLIST_SECTION}" ]]; then
+              echo "No checklist section found in the comment."
+              exit 0
+            fi
+
+            echo "Found checklist section."
+
+            # Check if all checkboxes are completed
+            if echo "${CHECKLIST_SECTION}" | grep -q '\[ \]'; then
+              echo "Not all checkboxes within the section are completed. Found unchecked boxes: [ ]"
+              exit 0
+            fi
+            
+            # Optional: Verify that there are actually checkboxes present
+            if ! echo "${CHECKLIST_SECTION}" | grep -iq '\[x\]'; then
+              echo "No completed checkboxes found within the section."
+              exit 0
+            fi
+
+            echo "All checkboxes in the checklist section are completed!"
+            echo "Adding label: ${APPROVED_LABEL}"
+            gh issue edit "${ISSUE_NUMBER}" --add-label "${APPROVED_LABEL}"
+            echo "Removing label: ${NEEDS_APPROVAL_LABEL}"
+            gh issue edit "${ISSUE_NUMBER}" --remove-label "${NEEDS_APPROVAL_LABEL}"
+          else
+            echo "${NEEDS_APPROVAL_LABEL} label NOT found."
+            exit 0
+          fi
