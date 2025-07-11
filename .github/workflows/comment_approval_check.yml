@@ -1,0 +1,52 @@
+name: Comment Approval Check
+
+on:
+  issue_comment:
+    types: 
+      - created
+
+jobs:
+  label-commenter:
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+      contents: read
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Check Comment For Approval
+        id: comment-check
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          COMMENT: ${{ github.event.comment.body }}
+          COMMENT_AUTHOR: ${{ github.event.comment.user.login }}
+          ISSUE_ASSIGNEES: ${{ toJson(github.event.issue.assignees) }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          LABELS: ${{ toJson(github.event.issue.labels) }}
+          NEEDS_APPROVAL_LABEL: ${{ vars.NEEDS_APPROVAL_LABEL || 'verification-needed'}}
+          APPROVED_LABEL: ${{ vars.APPROVED_LABEL || 'verified'}}
+          APPROVAL_MSG_REGEX: ${{ vars.APPROVAL_MSG_REGEX || '(v.+r.+ed|ap.*r.+v.*ed)' }}
+          APPROVAL_TEAM_REGEX: ${{ vars.APPROVAL_TEAM_REGEX || 'ac.+s.+b.*l.*ty' }}
+        run: |
+          LABEL_NAMES=$(echo "${LABELS}" | jq 'map(.name)')
+          if echo "${LABEL_NAMES}" | grep -wq "${NEEDS_APPROVAL_LABEL}"; then
+            echo "${ISSUE_ASSIGNEES}" | jq -r '.[].login' | grep -wq "${COMMENT_AUTHOR}"
+            if [[ $? -ne 0 ]]; then
+              echo "Comment author is not an assignee."
+              exit 0
+            fi
+
+            COMMENT_LOWER=$(echo "${COMMENT}" | tr '[:upper:]' '[:lower:]')
+            if [[ "${COMMENT_LOWER}" =~ ${APPROVAL_MSG_REGEX} ]] && [[ "${COMMENT_LOWER}" =~ ${APPROVAL_TEAM_REGEX} ]]; then
+              echo "Adding label: ${APPROVED_LABEL}"
+              gh issue edit "${ISSUE_NUMBER}" --add-label "${APPROVED_LABEL}"
+              echo "Removing label: ${NEEDS_APPROVAL_LABEL}"
+              gh issue edit "${ISSUE_NUMBER}" --remove-label "${NEEDS_APPROVAL_LABEL}"
+            else
+              echo "No team approval or verification found in the comment."
+            fi
+          else
+            echo "${NEEDS_APPROVAL_LABEL} label NOT found."
+          fi
