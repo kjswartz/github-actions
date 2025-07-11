@@ -1,0 +1,41 @@
+name: Label Commenter
+
+on:
+  issues:
+    types:
+      - labeled
+
+jobs:
+  label-commenter:
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Label Comment
+        id: label_comment
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          APPLIED_LABEL_NAME: ${{ toJson(github.event.label.name) }}
+          LABELS_TO_COMMENT_MAP: 'Private Preview,private-preview-checklist.md|Public Preview,public-preview-checklist.md|GA,ga-checklist.md'
+          COMMENT_FILES_DIRECTORY: '.github/comment-templates'
+          LABEL_TO_ADD: ${{ vars.label-commenter-label }}
+        run: |
+          IFS='|' read -r -a LABELS_TO_COMMENT <<< "${LABELS_TO_COMMENT_MAP}"
+          for LABEL in "${LABELS_TO_COMMENT[@]}"; do
+            IFS=',' read -r LABEL_NAME COMMENT_FILE <<< "${LABEL}"
+            if [[ "${LABEL_NAME}" == "${APPLIED_LABEL_NAME}" ]]; then
+              echo "Label '${LABEL_NAME}' matched, setting output."
+              COMMENT_TEXT=$(cat "${COMMENT_FILES_DIRECTORY}/${COMMENT_FILE}")
+              gh issue comment "${ISSUE_NUMBER}" --body "${COMMENT_TEXT}"
+              if [[ -n "${LABEL_TO_ADD}" ]]; then
+                echo "Adding label '${LABEL_TO_ADD}' to issue #${ISSUE_NUMBER}."
+                gh issue edit "${ISSUE_NUMBER}" --add-label "${LABEL_TO_ADD}"
+              fi
+            fi
+          done
