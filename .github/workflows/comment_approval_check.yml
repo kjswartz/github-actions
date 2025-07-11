@@ -30,10 +30,10 @@ jobs:
           APPROVAL_MSG_REGEX: ${{ vars.APPROVAL_MSG_REGEX || '(v.+r.+ed|ap.*r.+v.*ed)' }}
           APPROVAL_TEAM_REGEX: ${{ vars.APPROVAL_TEAM_REGEX || 'ac.+s.+b.*l.*ty' }}
         run: |
-          LABEL_NAMES=$(echo "${LABELS}" | jq 'map(.name)')
-          if echo "${LABEL_NAMES}" | grep -wq "${NEEDS_APPROVAL_LABEL}"; then
-            echo "${ISSUE_ASSIGNEES}" | jq -r '.[].login' | grep -wq "${COMMENT_AUTHOR}"
-            if [[ $? -ne 0 ]]; then
+          LABEL_FOUND=$(echo "${LABELS}" | jq --arg label "${NEEDS_APPROVAL_LABEL}" 'map(.name // empty) | contains([$label])')
+          if [[ "${LABEL_FOUND}" == "true" ]]; then
+            ASSIGNEE_AUTHOR_FOUND=$(echo "${ISSUE_ASSIGNEES}" | jq --arg author "${COMMENT_AUTHOR}" 'map(.login // empty) | contains([$author])')
+            if [[ "${ASSIGNEE_AUTHOR_FOUND}" == "false" ]]; then
               echo "Comment author is not an assignee."
               exit 0
             fi
@@ -49,4 +49,5 @@ jobs:
             fi
           else
             echo "${NEEDS_APPROVAL_LABEL} label NOT found."
+            exit 0
           fi
