@@ -42,7 +42,7 @@ PR_BODY="This PR adds the build files.
 ### 📝 Changes
 Added / updated the following files:
 - file 1
-- file 2
+- file 2"
 
 PR_FLAGS=(--title "$PR_TITLE" --body "$PR_BODY" --head "$BRANCH_NAME" --base main)
 
