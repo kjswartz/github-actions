@@ -56,7 +56,7 @@ jobs:
             offset=$processed_count
             
             echo "Fetching issues starting from offset $offset..."
-            issues_json=$(jq ".[$offset:$(($offset + $BATCH_SIZE))]" issues.txt)
+            issues_json=$(jq ".[$offset:$(($offset + $BATCH_SIZE))]" issues.json)
             
             batch_count=$(echo "$issues_json" | jq 'length')
             
