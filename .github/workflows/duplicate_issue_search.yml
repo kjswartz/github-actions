@@ -5,36 +5,142 @@ on:
     types:
       - opened
 
-jobs:
-  ai-assessment:
-    runs-on: ubuntu-latest
-    permissions:
-      issues: write
-      models: read
-      contents: read
+permissions:
+  issues: write
+  models: read
+  contents: read
 
+jobs:
+  prepare-batches:
+    if: github.actor == 'kjswartz' # for testing purposes
+    runs-on: ubuntu-latest
+    outputs:
+      batch_matrix: ${{ steps.batch-script.outputs.batch_matrix }}
+      total_batches: ${{ steps.batch-script.outputs.total_batches }}
     steps:
-      - name: Get issues
+      - name: Checkout repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Fetch and process issues in batches
+        id: batch-script
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          echo "Determin if the following issue is a duplicate of any existing issues in the repository. If it is a duplicate, rate the similarity as 'HIGH', 'MEDIUM', or 'LOW'. Only include issues that have some similarity. Provide your response in this format for each similar issue:\n\nIssue #[number] - [similarity rating]\nTitle: [title]\nURL: [url]\nReason for similarity: [brief explanation]\n\nSort the results by similarity rating (HIGH first, then MEDIUM, then LOW).\n\nIssue Title: ${{ github.event.issue.title }}\nIssue Body: ${{ github.event.issue.body }}\n\nExisting Issues:\n" > issues.txt
-          gh issue list --repo ${{ github.repository }} --limit 100 --json number,title,body,url,labels --jq '.[] | select(.number != '${{ github.event.issue.number }}') | {number: .number, title: .title, body: .body, url: .url, labels: [.labels[].name]}' >> issues.txt
-          echo "Issues fetched successfully."
-      
-      - name: Search for Dups
-        id: inference
-        uses: actions/ai-inference@main
+          NEW_ISSUE_TITLE: ${{ github.event.issue.title }}
+          NEW_ISSUE_BODY: ${{ github.event.issue.body }}
+          NEW_ISSUE_NUMBER: ${{ github.event.issue.number }}
+          REPO: ${{ github.repository }}
+          BATCH_SIZE: 50
+        run: ./.github/scripts/batch-compile-issues.sh
+
+      - name: Upload batch files as artifacts
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
-          prompt-file: './issues.txt'
-          model: openai/gpt-4o
+          name: batch-files
+          path: batch_prompt_*.txt
+          retention-days: 1
+
+  batch-processing:
+    needs: prepare-batches
+    runs-on: ubuntu-latest
+    if: needs.prepare-batches.outputs.total_batches > 0
+    strategy:
+      fail-fast: false
+      matrix:
+        batch_file: ${{ fromJson(needs.prepare-batches.outputs.batch_matrix) }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Download batch files
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: batch-files
+
+      - name: AI Inference for Batch Results
+        id: ai-inference
+        uses: actions/ai-inference@9693b137b6566bb66055a713613bf4f0493701eb # v1.2.3
+        with:
+          prompt-file: './${{ matrix.batch_file }}.txt'
           token: ${{ secrets.GITHUB_TOKEN }}
           max-tokens: 2000
+          model: openai/gpt-4.1
 
-      - name: Print Output
-        id: output
+      - name: Save batch results
+        env:
+          AI_RESPONSE: ${{ steps.ai-inference.outputs.response }}
+          BATCH_FILE: ${{ matrix.batch_file }}
+        run: |
+          echo "Processing AI inference results for $BATCH_FILE..."
+          mkdir -p batch_results
+          
+          echo "Raw AI Response:"
+          echo "$AI_RESPONSE"
+          echo "---"
+
+          echo "$AI_RESPONSE" > "batch_results/result_${BATCH_FILE}.md"
+          echo "Successfully saved valid JSON for $BATCH_FILE"
+
+      - name: Upload batch results
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: batch-results-${{ matrix.batch_file }}
+          path: batch_results/result_${{ matrix.batch_file }}.md
+          retention-days: 1
+
+  combine-results:
+    needs: [prepare-batches, batch-processing]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Download all batch results
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          pattern: batch-results-*
+          merge-multiple: true
+
+      - name: Combine all results
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: | 
-          echo "${{ steps.inference.outputs.response }}" > response.md
-          gh issue comment ${{ github.event.issue.number }} --repo ${{ github.repository }} --body-file response.md
+          NEW_ISSUE_NUMBER: ${{ github.event.issue.number }}
+          REPO: ${{ github.repository }}
+          TOTAL_BATCHES: ${{ needs.prepare-batches.outputs.total_batches }}
+        run: |
+          echo "Combining results from $TOTAL_BATCHES batches..."
+          
+          # Create final markdown response
+          echo "## Duplicate Issue Analysis Results" > final_response.md
+          echo "" >> final_response.md
+          
+          # Check if any result files exist
+          if ls result_batch_prompt_*.md 1> /dev/null 2>&1; then
+            echo "Found result files, processing..."
+            for result_file in result_batch_prompt_*.md; do
+              if [ -f "$result_file" ]; then
+                echo "Processing $result_file..."                
+
+                cat "$result_file" >> final_response.md
+                echo "" >> final_response.md
+              fi
+            done
+          else
+            echo "No result files found"
+            echo "No duplicate or similar issues found in the analyzed batches." >> final_response.md
+          fi
+
+      - name: Post Results
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NEW_ISSUE_NUMBER: ${{ github.event.issue.number }}
+          REPO: ${{ github.repository }}
+        run: |
+          echo "Posting results to issue..."
+          
+          if [ -f "final_response.md" ]; then
+            cat final_response.md >> $GITHUB_STEP_SUMMARY
+            gh issue comment $NEW_ISSUE_NUMBER --repo $REPO --body-file final_response.md
+            echo "Results posted successfully!"
+          fi
+          
+          echo "Duplicate analysis workflow completed!"
