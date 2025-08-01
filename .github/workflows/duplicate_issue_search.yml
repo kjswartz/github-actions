@@ -45,9 +45,9 @@ jobs:
             "title": .title,
             "state": .state,
             "body": .body
-          }' | jq -s . > issues.txt
+          }' | jq -s . > issues.json
           
-          total_issues=$(jq 'length' issues.txt)
+          total_issues=$(jq 'length' issues.json)
           
           # Create batch processing loop
           while [ $processed_count -lt $total_issues ]; do
