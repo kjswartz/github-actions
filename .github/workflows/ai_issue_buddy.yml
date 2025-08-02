@@ -19,15 +19,15 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          echo "${{ github.event.comment.body}}\n\n" > comment.txt
-          echo "Below is a reference to the issue body:" >> comment.txt
-          echo "${{ github.event.issue.body }}" >> comment.txt
+          echo "${{ github.event.comment.body}}\n\n" > comment.md
+          echo "Below is a reference to the issue body:" >> comment.md
+          echo "${{ github.event.issue.body }}" >> comment.md
       
       - name: Ask AI Buddy
         id: inference
         uses: actions/ai-inference@main
         with:
-          prompt-file: './comment.txt'
+          prompt-file: './comment.md'
           model: openai/gpt-4o
           token: ${{ secrets.GITHUB_TOKEN }}
           max-tokens: 1000
