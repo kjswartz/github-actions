@@ -12,7 +12,6 @@ permissions:
 
 jobs:
   prepare-batches:
-    if: github.actor == 'kjswartz' # for testing purposes
     runs-on: ubuntu-latest
     outputs:
       batch_matrix: ${{ steps.batch-script.outputs.batch_matrix }}
@@ -68,7 +67,7 @@ jobs:
             echo "Retrieved $batch_count issues in batch $page"
             processed_count=$(($processed_count + $batch_count))
             
-            batch_prompt_file="batch_prompt_${page}.txt"
+            batch_prompt_file="batch_prompt_${page}.md"
             batch_files+=("batch_prompt_${page}")
             
             cat > "$batch_prompt_file" << EOF
@@ -124,7 +123,7 @@ jobs:
           - Batch size: $BATCH_SIZE
           - New issue number: $NEW_ISSUE_NUMBER
           
-          Each batch has been saved as batch_prompt_[number].txt for AI analysis."
+          Each batch has been saved as batch_prompt_[number].md for AI analysis."
           
           echo "Batch processing completed. Processed $processed_count total issues across $total_batches batches."
           echo "$processing_summary" >> $GITHUB_STEP_SUMMARY
@@ -133,7 +132,7 @@ jobs:
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: batch-files
-          path: batch_prompt_*.txt
+          path: batch_prompt_*.md
           retention-days: 1
 
   batch-processing:
@@ -157,7 +156,7 @@ jobs:
         id: ai-inference
         uses: actions/ai-inference@9693b137b6566bb66055a713613bf4f0493701eb # v1.2.3
         with:
-          prompt-file: './${{ matrix.batch_file }}.txt'
+          prompt-file: './${{ matrix.batch_file }}.md'
           token: ${{ secrets.GITHUB_TOKEN }}
           max-tokens: 2000
           model: openai/gpt-4.1
