@@ -4,7 +4,7 @@
 isTesting=${2:-false}
 
 # Check if the extension is already installed
-if [ "${isTesting}" != 'true' ]; then
+if [ "$isTesting" != 'true' ]; then
   if ! gh extension list | grep -q 'github/gh-models'; then
     gh extension install https://github.com/github/gh-models
   fi
@@ -20,13 +20,13 @@ summarize() {
 output=$(echo "$1" | jq -c '.[]' | while read -r issue; do
   update=$(echo "$issue" | jq -r '.update')
 
-  if [ -n "${update}" ]; then
-    if [ "${isTesting}" == 'true' ]; then
+  if [ -n "$update" ]; then
+    if [ "$isTesting" = 'true' ]; then
       summary=$(echo "$update summarized")
     else
-      summary=$(summarize "${update}")
+      summary=$(summarize "$update")
     fi
-    issue=$(echo "${issue}" | jq --arg summary "${summary}" '. + {summary: $summary}')
+    issue=$(echo "$issue" | jq --arg summary "${summary}" '. + {summary: $summary}')
   fi
   echo "${issue}"
 done)
