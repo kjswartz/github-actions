@@ -28,7 +28,7 @@ output=$(echo "$1" | jq -c '.[]' | while read -r issue; do
     fi
     issue=$(echo "$issue" | jq --arg summary "$summary" '. + {summary: $summary}')
   fi
-  echo "${issue}"
+  echo "$issue"
 done)
 
 # Parse the captured output back into a JSON object
