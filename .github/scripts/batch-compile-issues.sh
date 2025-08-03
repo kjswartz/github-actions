@@ -25,7 +25,7 @@ while [ $processed_count -lt $total_issues ]; do
   offset=$processed_count
   
   echo "Fetching issues starting from offset $offset..."
-  issues_json=$(jq ".[$offset:$(($offset + $BATCH_SIZE))]" issues.txt)
+  issues_json=$(jq ".[$offset:$((offset + BATCH_SIZE))]" issues.txt)
   
   batch_count=$(echo "$issues_json" | jq 'length')
   
@@ -35,7 +35,7 @@ while [ $processed_count -lt $total_issues ]; do
   fi
   
   echo "Retrieved $batch_count issues in batch $page"
-  processed_count=$(($processed_count + $batch_count))
+  processed_count=$((processed_count + batch_count))
   
   batch_prompt_file="batch_prompt_${page}.txt"
   batch_files+=("batch_prompt_${page}")
@@ -64,10 +64,10 @@ State: \(.state)
   echo "Created prompt file: $batch_prompt_file"
   echo "Batch $page contains $batch_count issues"
 
-  page=$(($page + 1))
+  page=$((page + 1))
 done
 
-total_batches=$(($page - 1))
+total_batches=$((page - 1))
 
 # Output batch information for GitHub Actions matrix
 if [ ${#batch_files[@]} -gt 0 ]; then
