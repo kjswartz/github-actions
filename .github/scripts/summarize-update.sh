@@ -26,7 +26,7 @@ output=$(echo "$1" | jq -c '.[]' | while read -r issue; do
     else
       summary=$(summarize "$update")
     fi
-    issue=$(echo "$issue" | jq --arg summary "${summary}" '. + {summary: $summary}')
+    issue=$(echo "$issue" | jq --arg summary "$summary" '. + {summary: $summary}')
   fi
   echo "${issue}"
 done)
