@@ -30,6 +30,8 @@ jobs:
           REPO: ${{ github.repository }}
           BATCH_SIZE: 50
         run: |
+          set -euo pipefail
+          
           echo "Starting batch processing for issue duplication detection..."
           echo "New Issue #$NEW_ISSUE_NUMBER: $NEW_ISSUE_TITLE"
           echo "Will process up to approximately $NEW_ISSUE_NUMBER issues in batches of $BATCH_SIZE"
@@ -49,7 +51,7 @@ jobs:
           total_issues=$(jq 'length' issues.json)
           
           # Create batch processing loop
-          while [ $processed_count -lt $total_issues ]; do
+          while [ "$processed_count" -lt "$total_issues" ]; do
             echo "Processing batch $page..."
             
             offset=$processed_count
@@ -65,7 +67,7 @@ jobs:
             fi
             
             echo "Retrieved $batch_count issues in batch $page"
-            processed_count=$(($processed_count + $batch_count))
+            processed_count=$((processed_count + batch_count))
             
             batch_prompt_file="batch_prompt_${page}.md"
             batch_files+=("batch_prompt_${page}")
@@ -89,17 +91,17 @@ jobs:
             echo "Created prompt file: $batch_prompt_file"
             echo "Batch $page contains $batch_count issues"
           
-            page=$(($page + 1))
+            page=$((page + 1))
           done
           
-          total_batches=$(($page - 1))
+          total_batches=$((page - 1))
           
           # Output batch information for GitHub Actions matrix
-          if [ ${#batch_files[@]} -gt 0 ]; then
+          if [ "${#batch_files[@]}" -gt 0 ]; then
             # Create properly formatted JSON array for the matrix
             batch_matrix_json="["
             for i in "${!batch_files[@]}"; do
-              if [ $i -gt 0 ]; then
+              if [ "$i" -gt 0 ]; then
                 batch_matrix_json+=","
               fi
               batch_matrix_json+="\"${batch_files[$i]}\""
