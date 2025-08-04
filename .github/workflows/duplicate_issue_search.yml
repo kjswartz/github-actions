@@ -41,12 +41,16 @@ jobs:
           page=1
           batch_files=()
           
-          gh api -X GET repos/$REPO/issues -f state="all" --paginate | jq --arg newNum "$NEW_ISSUE_NUMBER" '.[] | select(.number != ($newNum | tonumber)) | {
+          time_ago=$(date -d '1 year ago' '+%Y-%m-%dT%H:%M:%SZ')
+          echo "Filtering issues created after: $time_ago"
+
+          gh api -X GET repos/$REPO/issues -f state="all" --paginate | jq --arg newNum "$NEW_ISSUE_NUMBER" --arg dateFilter "$time_ago" '.[] | select(.number != ($newNum | tonumber)) | select(.created_at >= $dateFilter) | {
             "number": .number,
             "title": .title,
             "state": .state,
-            "body": .body
-          }' | jq -s . > issues.json
+            "body": .body,
+            "created_at": .created_at
+          }' | jq -s . > issues.txt
           
           total_issues=$(jq 'length' issues.json)
           
