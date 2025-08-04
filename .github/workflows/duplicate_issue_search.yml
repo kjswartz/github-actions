@@ -226,6 +226,11 @@ jobs:
                 echo "" >> final_response.md
               fi
             done
+            
+            if ! grep -q "\*\*Issue:\*\* #\d" final_response.md; then
+              echo "No duplicate issues found, posting empty response."
+              echo "No duplicate or similar issues found in the analyzed batches." >> final_response.md
+            fi
           else
             echo "No result files found"
             echo "No duplicate or similar issues found in the analyzed batches." >> final_response.md
