@@ -1,0 +1,111 @@
+name: Simple Prompt Assessment
+
+on:
+  issues:
+    types:
+      - opened
+
+permissions:
+  issues: write
+  models: read
+  contents: read
+
+jobs:
+  prepare-batches:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Create Spam Prompt
+        run: |
+          cat > system_prompt.txt << EOF
+          You are a spam detection system for GitHub issues. Your job is to analyze the provided content and determine if it contains spam, including both general spam content and suspicious links.
+
+          Consider these spam indicators:
+
+          **General Spam Indicators:**
+          - Promotional content or advertisements
+          - Repetitive text patterns or excessive use of emojis/caps
+          - Low-quality, nonsensical, or gibberish content
+          - Requests for personal information (email, phone, bank details)
+          - Cryptocurrency, gambling, or get-rich-quick schemes
+          - Content that doesn't relate to the repository's purpose or software development
+          - Excessive claims about money-making opportunities
+          - Urgency tactics ("LIMITED TIME", "ACT NOW", etc.)
+
+          **Link Spam Indicators:**
+          - Multiple unrelated links that don't serve the discussion
+          - Links to promotional, gambling, or adult content websites
+          - Short URL services used to hide destinations (bit.ly, tinyurl, etc.)
+          - Links to cryptocurrency or financial scam sites
+          - Suspicious domains or newly registered domains
+          - Links to download executables or suspicious files
+          - Links that completely unrelated to the repository or issue topic
+
+          **Legitimate Content Indicators:**
+          - Links to official documentation, Stack Overflow, or related GitHub repositories
+          - Technical discussions relevant to the repository
+          - Bug reports with specific details
+          - Feature requests with clear use cases
+          - Constructive feedback or suggestions
+
+          ---
+
+          **Output Format:**
+
+          ### Spam Detection Assessment: (Spam/Legitimate)
+
+          1. **Is this content spam?** (Yes/No)
+
+          2. **Analysis Summary**:
+              - [Provide a brief high-level summary of your assessment.]
+
+          3. **Detailed Reasoning**:
+              - If Spam:
+                - [List specific spam indicators found.]
+                - [Reference which categories of indicators were considered in your analysis]
+              - If Legitimate:
+                - [Briefly explain why the content appears legitimate.]
+
+          ---
+          EOF
+
+      - name: AI Inference with GitHub Tools
+        id: ai-inference
+        uses: actions/ai-inference@main
+        env:
+          PROMPT: ${{ github.event.issue.body }}
+        with:
+          prompt: ${{ env.PROMPT }}
+          system-prompt-file: './system_prompt.txt'
+          model: 'openai/gpt-4.1'
+          token: ${{ secrets.GITHUB_TOKEN }}
+          max-tokens: 2000
+
+      - name: Get Assessment
+        id: assessment
+        env:
+          assessment: ${{ steps.ai-inference.outputs.response }}
+        run: |
+          spam_result=$(echo "$assessment" | awk '/Is this content spam/i {
+            if (match($0, /[yY]es/)) print "Yes"
+            else if (match($0, /[nN]o/)) print "No"
+          }')
+          echo "spam_result=$spam_result" >> $GITHUB_OUTPUT
+
+      - name: Print Output
+        id: output
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SPAM_RESULT: ${{ steps.assessment.outputs.spam_result }}
+        run: | 
+          echo "${{ steps.ai-inference.outputs.response }}" > response.md
+          if [[ "$SPAM_RESULT" == "Yes" ]]; then
+            echo "This content is spam."
+            gh issue comment ${{ github.event.issue.number }} --repo ${{ github.repository }} --body-file response.md
+          elif [ "$SPAM_RESULT" = "No" ]; then
+            echo "This content is legitimate."
+          else
+            echo "Unable to determine if the content is spam or not."
+          fi
