@@ -86,13 +86,13 @@ jobs:
       - name: Get Assessment
         id: assessment
         env:
-          assessment: ${{ steps.ai-inference.outputs.response }}
+          ASSESSMENT: ${{ steps.ai-inference.outputs.response }}
         run: |
-          spam_result=$(echo "$assessment" | awk '/Is this content spam/i {
+          spam_result=$(echo "$ASSESSMENT" | awk '/Is this content spam/i {
             if (match($0, /[yY]es/)) print "Yes"
             else if (match($0, /[nN]o/)) print "No"
           }')
-          echo "$assessment" >> $GITHUB_STEP_SUMMARY
+          echo "$ASSESSMENT" >> $GITHUB_STEP_SUMMARY
           echo "spam_result=$spam_result" >> $GITHUB_OUTPUT
 
       - name: Print Output
@@ -100,10 +100,11 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SPAM_RESULT: ${{ steps.assessment.outputs.spam_result }}
+          ASSESSMENT: ${{ steps.ai-inference.outputs.response }}
         run: | 
-          echo "${{ steps.ai-inference.outputs.response }}" > response.md
           if [[ "$SPAM_RESULT" == "Yes" ]]; then
             echo "This content is spam."
+            echo "$ASSESSMENT" > response.md
             gh issue comment ${{ github.event.issue.number }} --repo ${{ github.repository }} --body-file response.md
           elif [ "$SPAM_RESULT" = "No" ]; then
             echo "This content is legitimate."
