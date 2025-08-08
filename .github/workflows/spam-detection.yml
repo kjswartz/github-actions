@@ -92,6 +92,7 @@ jobs:
             if (match($0, /[yY]es/)) print "Yes"
             else if (match($0, /[nN]o/)) print "No"
           }')
+          echo "$spam_result" >> $GITHUB_STEP_SUMMARY
           echo "spam_result=$spam_result" >> $GITHUB_OUTPUT
 
       - name: Print Output
