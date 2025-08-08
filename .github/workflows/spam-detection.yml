@@ -11,7 +11,7 @@ permissions:
   contents: read
 
 jobs:
-  prepare-batches:
+  spam-detection:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
