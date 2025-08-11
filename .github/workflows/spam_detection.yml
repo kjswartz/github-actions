@@ -111,6 +111,7 @@ jobs:
             echo "This content is spam."
             echo "$ASSESSMENT" > response.md
             gh issue comment ${{ github.event.issue.number }} --repo ${{ github.repository }} --body-file response.md
+            gh issue edit ${{ github.event.issue.number }} --repo ${{ github.repository }} --add-label "spam"
           elif [ "$SPAM_RESULT" = "No" ]; then
             echo "This content is legitimate."
           else
