@@ -67,7 +67,8 @@ gh api -X GET "repos/${REPO}/issues" -f state=all --paginate > raw_issues.json
 
 # Filter out new issue & restrict by created_at >= time_ago
 jq --arg newNum "$NEW_ISSUE_NUMBER" --arg dateFilter "$time_ago" '
-  map(select(.number != ($newNum|tonumber)))
+  map(select(.pull_request | not))    
+  | map(select(.number != ($newNum|tonumber)))
   | map(select(.created_at >= $dateFilter))
   | map({
       number, title, state, body,
