@@ -11,7 +11,7 @@ permissions:
   contents: read
 
 jobs:
-  prepare-batches:
+  issue_search:
     runs-on: ubuntu-latest
     outputs:
       batch_matrix: ${{ steps.batch-script.outputs.batch_matrix }}
