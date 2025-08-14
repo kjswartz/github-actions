@@ -32,4 +32,4 @@ jobs:
           BATCH_SIZE: 50
           MODEL_NAME: openai/gpt-4.1
           MAX_TOKENS: 2000
-        run: ./.github/scripts/duplicate_issue_search.sh
+        run: ./.github/scripts/duplicate-issue-identifier.sh
